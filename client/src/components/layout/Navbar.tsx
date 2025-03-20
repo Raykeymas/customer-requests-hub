@@ -80,7 +80,16 @@ const Navbar: React.FC = () => {
       onKeyDown={toggleDrawer(false)}
     >
       <Box sx={{ p: 2 }}>
-        <Typography variant="h6" component="div">
+        <Typography 
+          variant="h6" 
+          component={RouterLink} 
+          to="/dashboard"
+          sx={{
+            color: 'inherit',
+            textDecoration: 'none',
+            cursor: 'pointer'
+          }}
+        >
           顧客要望管理
         </Typography>
       </Box>
@@ -117,7 +126,17 @@ const Navbar: React.FC = () => {
             </IconButton>
           )}
           
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Typography 
+            variant="h6" 
+            component={RouterLink} 
+            to="/dashboard" 
+            sx={{ 
+              flexGrow: 1, 
+              color: 'inherit', 
+              textDecoration: 'none', 
+              cursor: 'pointer' 
+            }}
+          >
             顧客要望管理システム
           </Typography>
           
