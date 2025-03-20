@@ -15,6 +15,7 @@ import CustomerList from "./pages/customers/CustomerList";
 import CustomerForm from "./pages/customers/CustomerForm";
 import CustomerDetail from "./pages/customers/CustomerDetail";
 import TagList from "./pages/tags/TagList";
+import Analytics from "./pages/analytics/Analytics";
 
 // 認証が必要なルートのラッパーコンポーネント
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -161,13 +162,13 @@ const App: React.FC = () => {
               }
             />
 
-            {/* 分析・レポート（未実装） */}
+            {/* 分析・レポート */}
             <Route
               path="/analytics"
               element={
                 <ProtectedRoute>
                   <Layout>
-                    <div>分析・レポート（実装予定）</div>
+                    <Analytics />
                   </Layout>
                 </ProtectedRoute>
               }

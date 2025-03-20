@@ -18,8 +18,16 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
-import { Save as SaveIcon, Cancel as CancelIcon, Add as AddIcon } from "@mui/icons-material";
+import { 
+  Save as SaveIcon, 
+  Cancel as CancelIcon, 
+  Add as AddIcon, 
+  Search as SearchIcon,
+  Clear as ClearIcon 
+} from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import api from "../../services/api";
@@ -60,6 +68,12 @@ const RequestForm: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<boolean>(false);
+  const [tagFilter, setTagFilter] = useState<string>("");
+  const [openTagDialog, setOpenTagDialog] = useState<boolean>(false);
+  const [newTagName, setNewTagName] = useState<string>("");
+  const [newTagColor, setNewTagColor] = useState<string>("#3498db");
+  const [newTagCategory, setNewTagCategory] = useState<string>("その他");
+  const [addingTag, setAddingTag] = useState<boolean>(false);
 
   // 関連データの状態
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -225,6 +239,53 @@ const RequestForm: React.FC = () => {
     navigate(`/requests/${requestId}`);
   };
 
+  // タグダイアログを開く
+  const handleOpenTagDialog = () => {
+    setNewTagName("");
+    setNewTagColor("#3498db");
+    setNewTagCategory("その他");
+    setOpenTagDialog(true);
+  };
+
+  // タグダイアログを閉じる
+  const handleCloseTagDialog = () => {
+    setOpenTagDialog(false);
+  };
+
+  // 新しいタグを追加
+  const handleAddTag = async () => {
+    if (!newTagName) {
+      return;
+    }
+
+    try {
+      setAddingTag(true);
+      const response = await api.post("/tags", {
+        name: newTagName,
+        color: newTagColor,
+        category: newTagCategory
+      });
+
+      // 新しいタグを追加
+      const newTag = response.data;
+      setTags([...tags, newTag]);
+
+      // フォームのタグリストに新しいタグを追加して選択状態にする
+      const currentTags = watch("tags");
+      setValue("tags", [...currentTags, newTag]);
+
+      // タグフィルターをリセット
+      setTagFilter("");
+      
+      // ダイアログを閉じる
+      setOpenTagDialog(false);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "タグの追加に失敗しました");
+    } finally {
+      setAddingTag(false);
+    }
+  };
+
   if (loadingRelatedData) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "50vh" }}>
@@ -370,7 +431,10 @@ const RequestForm: React.FC = () => {
             </Grid>
 
             {/* 顧客 */}
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" gutterBottom>
+                関連顧客
+              </Typography>
               <Controller
                 name="customers"
                 control={control}
@@ -392,56 +456,131 @@ const RequestForm: React.FC = () => {
                       ))
                     }
                     renderInput={(params) => (
-                      <TextField {...params} label="関連顧客" placeholder="顧客を選択" />
+                      <TextField {...params} placeholder="顧客を選択" />
                     )}
                   />
                 )}
               />
             </Grid>
 
-            {/* タグ */}
-            <Grid item xs={12} md={6}>
+            {/* タグ選択 - チップベースのUI */}
+            <Grid item xs={12}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="subtitle1">
+                  タグ
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <TextField
+                    size="small"
+                    placeholder="タグを検索..."
+                    value={tagFilter}
+                    onChange={(e) => setTagFilter(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon fontSize="small" />
+                        </InputAdornment>
+                      ),
+                      endAdornment: tagFilter && (
+                        <InputAdornment position="end">
+                          <IconButton
+                            size="small"
+                            onClick={() => setTagFilter("")}
+                            edge="end"
+                          >
+                            <ClearIcon fontSize="small" />
+                          </IconButton>
+                        </InputAdornment>
+                      )
+                    }}
+                    sx={{ width: '200px' }}
+                  />
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={handleOpenTagDialog}
+                  >
+                    新規タグ
+                  </Button>
+                </Box>
+              </Box>
               <Controller
                 name="tags"
                 control={control}
                 render={({ field: { onChange, value } }) => (
-                  <Autocomplete
-                    multiple
-                    options={tags}
-                    getOptionLabel={(option) => option.name}
-                    value={value}
-                    onChange={(_, newValue) => onChange(newValue)}
-                    disabled={loading}
-                    renderTags={(value, getTagProps) =>
-                      value.map((option, index) => (
-                        <Chip
-                          variant="filled"
-                          label={option.name}
-                          {...getTagProps({ index })}
-                          style={{ backgroundColor: option.color, color: "white" }}
-                        />
-                      ))
-                    }
-                    renderOption={(props, option) => (
-                      <li {...props}>
-                        <Box
-                          component="span"
-                          sx={{
-                            width: 14,
-                            height: 14,
-                            mr: 1,
-                            borderRadius: "50%",
-                            backgroundColor: option.color,
-                            display: "inline-block",
-                          }}
-                        />
-                        {option.name} ({option.category})
-                      </li>
+                  <Box>
+                    {/* カテゴリーごとにタグを表示 */}
+                    {Array.from(new Set(tags.map(tag => tag.category))).map(category => {
+                      // そのカテゴリーでフィルタリングされたタグを取得
+                      const filteredTags = tags
+                        .filter(tag => tag.category === category)
+                        .filter(tag => 
+                          tagFilter === "" || 
+                          tag.name.toLowerCase().includes(tagFilter.toLowerCase())
+                        );
+                      
+                      // フィルタリングされたタグがなければそのカテゴリーは表示しない
+                      if (filteredTags.length === 0) return null;
+                      
+                      return (
+                        <Box key={category} sx={{ mb: 2 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                            {category}
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {filteredTags.map(tag => {
+                              const isSelected = value.some(selectedTag => selectedTag._id === tag._id);
+                              return (
+                                <Chip
+                                  key={tag._id}
+                                  label={tag.name}
+                                  sx={{
+                                    backgroundColor: isSelected ? tag.color : 'transparent',
+                                    color: isSelected ? 'white' : 'inherit',
+                                    border: `1px solid ${tag.color}`,
+                                    '&:hover': {
+                                      backgroundColor: isSelected ? tag.color : `${tag.color}33`,
+                                    },
+                                  }}
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      onChange(value.filter(item => item._id !== tag._id));
+                                    } else {
+                                      onChange([...value, tag]);
+                                    }
+                                  }}
+                                  disabled={loading}
+                                />
+                              );
+                            })}
+                          </Box>
+                        </Box>
+                      );
+                    })}
+
+                    {/* 選択されたタグを表示 */}
+                    {value.length > 0 && (
+                      <Box sx={{ mt: 2, p: 2, bgcolor: 'rgba(0, 0, 0, 0.03)', borderRadius: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                          選択済みタグ ({value.length})
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {value.map(tag => (
+                            <Chip
+                              key={tag._id}
+                              label={tag.name}
+                              style={{ backgroundColor: tag.color, color: 'white' }}
+                              onDelete={() => {
+                                onChange(value.filter(item => item._id !== tag._id));
+                              }}
+                              disabled={loading}
+                            />
+                          ))}
+                        </Box>
+                      </Box>
                     )}
-                    renderInput={(params) => (
-                      <TextField {...params} label="タグ" placeholder="タグを選択" />
-                    )}
-                  />
+                  </Box>
                 )}
               />
               {searchingSimilar && (
@@ -512,6 +651,113 @@ const RequestForm: React.FC = () => {
         <DialogActions>
           <Button onClick={handleCloseSimilarDialog} color="primary">
             閉じる
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 新規タグ追加ダイアログ */}
+      <Dialog open={openTagDialog} onClose={handleCloseTagDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>新規タグ追加</DialogTitle>
+        <DialogContent>
+          <Box component="form" sx={{ mt: 1 }}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              label="タグ名"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              disabled={addingTag}
+              autoFocus
+            />
+            
+            <FormControl fullWidth margin="normal">
+              <InputLabel id="tag-category-label">カテゴリー</InputLabel>
+              <Select
+                labelId="tag-category-label"
+                value={newTagCategory}
+                onChange={(e) => setNewTagCategory(e.target.value)}
+                label="カテゴリー"
+                disabled={addingTag}
+              >
+                <MenuItem value="機能領域">機能領域</MenuItem>
+                <MenuItem value="顧客属性">顧客属性</MenuItem>
+                <MenuItem value="重要度">重要度</MenuItem>
+                <MenuItem value="その他">その他</MenuItem>
+              </Select>
+            </FormControl>
+            
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                タグの色
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                {[
+                  "#3498db", // 青
+                  "#2ecc71", // 緑
+                  "#e74c3c", // 赤
+                  "#f39c12", // オレンジ
+                  "#9b59b6", // 紫
+                  "#1abc9c", // ターコイズ
+                  "#e67e22", // オレンジ濃い
+                  "#34495e", // 紺
+                  "#d35400", // 赤茶
+                  "#27ae60", // 緑濃い
+                  "#3498db", // 青
+                  "#e74c3c"  // 赤
+                ].map((color) => (
+                  <Box 
+                    key={color}
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      bgcolor: color,
+                      cursor: 'pointer',
+                      border: newTagColor === color ? '3px solid #000' : '1px solid #ddd',
+                      '&:hover': { opacity: 0.8 }
+                    }}
+                    onClick={() => setNewTagColor(color)}
+                  />
+                ))}
+              </Box>
+              <TextField
+                margin="normal"
+                fullWidth
+                label="カスタム色（HEX）"
+                value={newTagColor}
+                onChange={(e) => setNewTagColor(e.target.value)}
+                disabled={addingTag}
+                sx={{ mt: 2 }}
+              />
+              
+              <Box sx={{ mt: 2, p: 2, bgcolor: 'rgba(0, 0, 0, 0.03)', borderRadius: 1 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  プレビュー
+                </Typography>
+                <Chip
+                  label={newTagName || "新しいタグ"}
+                  sx={{
+                    backgroundColor: newTagColor,
+                    color: 'white',
+                  }}
+                />
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseTagDialog} disabled={addingTag}>
+            キャンセル
+          </Button>
+          <Button 
+            onClick={handleAddTag} 
+            color="primary" 
+            variant="contained" 
+            disabled={!newTagName || addingTag}
+            startIcon={addingTag ? <CircularProgress size={24} /> : null}
+          >
+            追加
           </Button>
         </DialogActions>
       </Dialog>

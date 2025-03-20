@@ -222,7 +222,7 @@ const Dashboard: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               ステータス別要望数
             </Typography>
-            {statusChartData && (
+            {statusChartData ? (
               <Box
                 sx={{
                   height: 300,
@@ -232,6 +232,12 @@ const Dashboard: React.FC = () => {
                 }}
               >
                 <Pie data={statusChartData} options={{ maintainAspectRatio: false }} />
+              </Box>
+            ) : (
+              <Box sx={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Typography variant="body2" color="text.secondary">
+                  ステータスデータがありません
+                </Typography>
               </Box>
             )}
             <Box sx={{ mt: 2, textAlign: "right" }}>
@@ -247,7 +253,7 @@ const Dashboard: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               優先度別要望数
             </Typography>
-            {priorityChartData && (
+            {priorityChartData ? (
               <Box
                 sx={{
                   height: 300,
@@ -258,6 +264,12 @@ const Dashboard: React.FC = () => {
               >
                 <Pie data={priorityChartData} options={{ maintainAspectRatio: false }} />
               </Box>
+            ) : (
+              <Box sx={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Typography variant="body2" color="text.secondary">
+                  優先度データがありません
+                </Typography>
+              </Box>
             )}
           </Paper>
         </Grid>
@@ -267,7 +279,7 @@ const Dashboard: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               月別要望登録数
             </Typography>
-            {monthlyChartData && (
+            {monthlyChartData ? (
               <Box sx={{ height: 300 }}>
                 <Bar
                   data={monthlyChartData}
@@ -291,6 +303,12 @@ const Dashboard: React.FC = () => {
                   }}
                 />
               </Box>
+            ) : (
+              <Box sx={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Typography variant="body2" color="text.secondary">
+                  月別データがありません
+                </Typography>
+              </Box>
             )}
           </Paper>
         </Grid>
@@ -301,18 +319,24 @@ const Dashboard: React.FC = () => {
               人気のタグ
             </Typography>
             <Box sx={{ mt: 2 }}>
-              {stats?.tagStats?.map((tag) => (
-                <Chip
-                  key={tag._id}
-                  label={`${tag.name} (${tag.count})`}
-                  sx={{
-                    m: 0.5,
-                    bgcolor: tag.color || "#3498db",
-                    color: "#ffffff",
-                  }}
-                  icon={<LocalOfferIcon style={{ color: "#ffffff" }} />}
-                />
-              ))}
+              {stats?.tagStats && stats.tagStats.length > 0 ? (
+                stats.tagStats.map((tag) => (
+                  <Chip
+                    key={tag._id}
+                    label={`${tag.name} (${tag.count})`}
+                    sx={{
+                      m: 0.5,
+                      bgcolor: tag.color || "#3498db",
+                      color: "#ffffff",
+                    }}
+                    icon={<LocalOfferIcon style={{ color: "#ffffff" }} />}
+                  />
+                ))
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  タグデータがありません
+                </Typography>
+              )}
             </Box>
             <Box sx={{ mt: 2, textAlign: "right" }}>
               <Button component={Link} to="/tags" color="primary">
@@ -328,24 +352,30 @@ const Dashboard: React.FC = () => {
               要望の多い顧客
             </Typography>
             <Box sx={{ mt: 2 }}>
-              {stats?.customerStats?.slice(0, 10).map((customer, index) => (
-                <Box
-                  key={customer._id}
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    mb: 1.5,
-                    alignItems: "center",
-                  }}
-                >
-                  <Typography>
-                    {index + 1}. {customer.name} ({customer.company})
-                  </Typography>
-                  <Typography variant="body2" fontWeight="bold">
-                    {customer.count}件
-                  </Typography>
-                </Box>
-              ))}
+              {stats?.customerStats && stats.customerStats.length > 0 ? (
+                stats.customerStats.slice(0, 10).map((customer, index) => (
+                  <Box
+                    key={customer._id}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mb: 1.5,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Typography>
+                      {index + 1}. {customer.name} ({customer.company})
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                      {customer.count}件
+                    </Typography>
+                  </Box>
+                ))
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  顧客データがありません
+                </Typography>
+              )}
             </Box>
             <Box sx={{ mt: 2, textAlign: "right" }}>
               <Button component={Link} to="/customers" color="primary">

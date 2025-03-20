@@ -23,6 +23,10 @@ import {
   Alert,
   IconButton,
   Tooltip,
+  Autocomplete,
+  OutlinedInput,
+  Checkbox,
+  ListItemText,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -30,6 +34,7 @@ import {
   FilterList as FilterIcon,
   Clear as ClearIcon,
   Visibility as VisibilityIcon,
+  LocalOffer as LocalOfferIcon,
 } from "@mui/icons-material";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../services/api";
@@ -73,7 +78,23 @@ const RequestList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [priorityFilter, setPriorityFilter] = useState<string>("");
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+
+  // タグの取得
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const response = await api.get('/tags');
+        setAvailableTags(response.data);
+      } catch (err) {
+        console.error('タグの取得に失敗しました', err);
+      }
+    };
+
+    fetchTags();
+  }, []);
 
   // リクエストの取得
   useEffect(() => {
@@ -89,6 +110,13 @@ const RequestList: React.FC = () => {
         if (searchQuery) params.append("search", searchQuery);
         if (statusFilter) params.append("status", statusFilter);
         if (priorityFilter) params.append("priority", priorityFilter);
+        
+        // タグフィルター（複数）
+        if (tagFilters.length > 0) {
+          tagFilters.forEach(tagId => {
+            params.append("tag", tagId);
+          });
+        }
 
         const response = await api.get(`/requests?${params.toString()}`);
         setRequests(response.data.requests);
@@ -101,7 +129,7 @@ const RequestList: React.FC = () => {
     };
 
     fetchRequests();
-  }, [page, rowsPerPage, searchQuery, statusFilter, priorityFilter]);
+  }, [page, rowsPerPage, searchQuery, statusFilter, priorityFilter, tagFilters]);
 
   // ページネーションハンドラー
   const handleChangePage = (event: unknown, newPage: number) => {
@@ -124,6 +152,7 @@ const RequestList: React.FC = () => {
     setSearchQuery("");
     setStatusFilter("");
     setPriorityFilter("");
+    setTagFilters([]);
     setPage(0);
   };
 
@@ -233,7 +262,7 @@ const RequestList: React.FC = () => {
                 {showFilters ? "フィルターを隠す" : "フィルター"}
               </Button>
 
-              {(statusFilter || priorityFilter || searchQuery) && (
+              {(statusFilter || priorityFilter || searchQuery || tagFilters.length > 0) && (
                 <Button variant="outlined" color="secondary" onClick={handleClearFilters}>
                   クリア
                 </Button>
@@ -277,6 +306,61 @@ const RequestList: React.FC = () => {
                     <MenuItem value="中">中</MenuItem>
                     <MenuItem value="高">高</MenuItem>
                     <MenuItem value="緊急">緊急</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12}>
+                <FormControl fullWidth variant="outlined">
+                  <InputLabel id="tag-filter-label">タグで絞り込み（複数選択可）</InputLabel>
+                  <Select
+                    labelId="tag-filter-label"
+                    id="tag-filter"
+                    multiple
+                    value={tagFilters}
+                    onChange={(e) => setTagFilters(e.target.value as string[])}
+                    input={<OutlinedInput label="タグで絞り込み（複数選択可）" />}
+                    renderValue={(selected) => (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {selected.map((tagId) => {
+                          const tag = availableTags.find(t => t._id === tagId);
+                          return tag ? (
+                            <Chip 
+                              key={tag._id}
+                              label={tag.name}
+                              size="small"
+                              sx={{
+                                bgcolor: tag.color,
+                                color: 'white',
+                              }}
+                            />
+                          ) : null;
+                        })}
+                      </Box>
+                    )}
+                  >
+                    {availableTags.map((tag) => (
+                      <MenuItem key={tag._id} value={tag._id}>
+                        <Checkbox checked={tagFilters.indexOf(tag._id) > -1} />
+                        <ListItemText 
+                          primary={
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Box 
+                                component="span" 
+                                sx={{ 
+                                  width: 12, 
+                                  height: 12, 
+                                  borderRadius: '50%', 
+                                  bgcolor: tag.color,
+                                  mr: 1
+                                }} 
+                              />
+                              {tag.name}
+                            </Box>
+                          } 
+                        />
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </Grid>

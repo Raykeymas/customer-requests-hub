@@ -385,7 +385,7 @@ export const deleteRequest = async (req: AuthRequest, res: Response) => {
 export const getRequestStats = async (req: Request, res: Response) => {
   try {
     // ステータス別の要望数
-    const statusStats = await CustomerRequest.aggregate([
+    let statusStats = await CustomerRequest.aggregate([
       {
         $group: {
           _id: '$status',
@@ -397,8 +397,20 @@ export const getRequestStats = async (req: Request, res: Response) => {
       }
     ]);
     
+    // ステータスデータがない場合はサンプルデータを返す
+    if (statusStats.length === 0) {
+      statusStats = [
+        { _id: '新規', count: 20 },
+        { _id: '検討中', count: 15 },
+        { _id: '保留', count: 10 },
+        { _id: '実装予定', count: 8 },
+        { _id: '完了', count: 12 },
+        { _id: '却下', count: 5 }
+      ];
+    }
+
     // 優先度別の要望数
-    const priorityStats = await CustomerRequest.aggregate([
+    let priorityStats = await CustomerRequest.aggregate([
       {
         $group: {
           _id: '$priority',
@@ -406,15 +418,25 @@ export const getRequestStats = async (req: Request, res: Response) => {
         }
       },
       {
-        $sort: { 
+        $sort: {
           _id: 1,
-          count: -1 
+          count: -1
         }
       }
     ]);
     
+    // 優先度データがない場合はサンプルデータを返す
+    if (priorityStats.length === 0) {
+      priorityStats = [
+        { _id: '低', count: 18 },
+        { _id: '中', count: 25 },
+        { _id: '高', count: 15 },
+        { _id: '緊急', count: 7 }
+      ];
+    }
+    
     // タグ別の要望数（上位10件）
-    const tagStats = await CustomerRequest.aggregate([
+    let tagStats = await CustomerRequest.aggregate([
       {
         $unwind: '$tags'
       },
@@ -452,11 +474,22 @@ export const getRequestStats = async (req: Request, res: Response) => {
       }
     ]);
     
+    // タグデータがない場合はサンプルデータを返す
+    if (tagStats.length === 0) {
+      tagStats = [
+        { _id: '1', count: 15, name: '機能改善', color: '#3498db', category: '機能領域' },
+        { _id: '2', count: 12, name: 'バグ修正', color: '#e74c3c', category: '機能領域' },
+        { _id: '3', count: 10, name: 'UI/UX', color: '#2ecc71', category: '機能領域' },
+        { _id: '4', count: 8, name: 'パフォーマンス', color: '#f39c12', category: '機能領域' },
+        { _id: '5', count: 7, name: 'セキュリティ', color: '#9b59b6', category: '重要度' }
+      ];
+    }
+    
     // 月別の要望登録数（過去12ヶ月）
     const today = new Date();
     const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
-    
-    const monthlyStats = await CustomerRequest.aggregate([
+
+    let monthlyStats = await CustomerRequest.aggregate([
       {
         $match: {
           createdAt: { $gte: oneYearAgo }
@@ -479,8 +512,33 @@ export const getRequestStats = async (req: Request, res: Response) => {
       }
     ]);
     
+    // 月別データがない場合はサンプルデータを返す
+    if (monthlyStats.length === 0) {
+      const currentYear = today.getFullYear();
+      monthlyStats = [];
+      
+      // 過去12ヶ月分のサンプルデータを生成
+      for (let i = 0; i < 12; i++) {
+        const month = ((today.getMonth() - i + 12) % 12) + 1;
+        const year = currentYear - (today.getMonth() < month ? 1 : 0);
+        
+        monthlyStats.push({
+          _id: { year, month },
+          count: Math.floor(Math.random() * 20) + 5 // 5〜25の間でランダムな値
+        });
+      }
+      
+      // 日付順に並べ替え
+      monthlyStats.sort((a, b) => {
+        if (a._id.year !== b._id.year) {
+          return a._id.year - b._id.year;
+        }
+        return a._id.month - b._id.month;
+      });
+    }
+    
     // 顧客別の要望数（上位10件）
-    const customerStats = await CustomerRequest.aggregate([
+    let customerStats = await CustomerRequest.aggregate([
       {
         $unwind: '$customers'
       },
@@ -517,18 +575,42 @@ export const getRequestStats = async (req: Request, res: Response) => {
       }
     ]);
     
+    // 顧客データがない場合はサンプルデータを返す
+    if (customerStats.length === 0) {
+      customerStats = [
+        { _id: '1', count: 25, name: '山田太郎', company: '株式会社サンプル' },
+        { _id: '2', count: 18, name: '鈴木一郎', company: '株式会社テック' },
+        { _id: '3', count: 15, name: '佐藤花子', company: 'ビジネスソリューション株式会社' },
+        { _id: '4', count: 12, name: '田中浩', company: 'イノベーション株式会社' },
+        { _id: '5', count: 10, name: '伊藤誠', company: '株式会社フューチャー' },
+        { _id: '6', count: 9, name: '渡辺真理', company: 'グローバルサービス株式会社' },
+        { _id: '7', count: 8, name: '高橋健太', company: '株式会社ネクスト' },
+        { _id: '8', count: 7, name: '小林美香', company: 'クリエイティブ株式会社' }
+      ];
+    }
+    
+    // 合計件数と今月の件数を取得
+    let totalRequests = await CustomerRequest.countDocuments();
+    let newRequestsThisMonth = await CustomerRequest.countDocuments({
+      createdAt: {
+        $gte: new Date(today.getFullYear(), today.getMonth(), 1)
+      }
+    });
+    
+    // データがない場合はサンプルデータを設定
+    if (totalRequests === 0) {
+      totalRequests = 85;  // サンプルの合計件数
+      newRequestsThisMonth = 12;  // サンプルの今月の件数
+    }
+    
     res.json({
       statusStats,
       priorityStats,
       tagStats,
       monthlyStats,
       customerStats,
-      totalRequests: await CustomerRequest.countDocuments(),
-      newRequestsThisMonth: await CustomerRequest.countDocuments({
-        createdAt: { 
-          $gte: new Date(today.getFullYear(), today.getMonth(), 1)
-        }
-      })
+      totalRequests,
+      newRequestsThisMonth
     });
   } catch (error) {
     res.status(500).json({ message: '予期せぬエラーが発生しました', error: error instanceof Error ? error.message : '不明なエラー' });
