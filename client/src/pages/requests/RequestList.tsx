@@ -27,6 +27,7 @@ import {
   OutlinedInput,
   Checkbox,
   ListItemText,
+  Divider,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -44,6 +45,7 @@ interface Tag {
   _id: string;
   name: string;
   color: string;
+  category?: string;
 }
 
 interface Customer {
@@ -81,15 +83,16 @@ const RequestList: React.FC = () => {
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  const [tagSearchQuery, setTagSearchQuery] = useState<string>(""); // タグ検索用
 
   // タグの取得
   useEffect(() => {
     const fetchTags = async () => {
       try {
-        const response = await api.get('/tags');
+        const response = await api.get("/tags");
         setAvailableTags(response.data);
       } catch (err) {
-        console.error('タグの取得に失敗しました', err);
+        console.error("タグの取得に失敗しました", err);
       }
     };
 
@@ -110,10 +113,10 @@ const RequestList: React.FC = () => {
         if (searchQuery) params.append("search", searchQuery);
         if (statusFilter) params.append("status", statusFilter);
         if (priorityFilter) params.append("priority", priorityFilter);
-        
+
         // タグフィルター（複数）
         if (tagFilters.length > 0) {
-          tagFilters.forEach(tagId => {
+          tagFilters.forEach((tagId) => {
             params.append("tag", tagId);
           });
         }
@@ -153,8 +156,27 @@ const RequestList: React.FC = () => {
     setStatusFilter("");
     setPriorityFilter("");
     setTagFilters([]);
+    setTagSearchQuery("");
     setPage(0);
   };
+
+  // タグ選択ハンドラー
+  const handleTagToggle = (tagId: string) => {
+    setTagFilters((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+    setPage(0);
+  };
+
+  // カテゴリー別にタグをグループ化
+  const groupedTags = availableTags.reduce<Record<string, Tag[]>>((acc, tag) => {
+    const category = tag.category || "その他";
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(tag);
+    return acc;
+  }, {});
 
   // ステータスに応じた色を返す
   const getStatusColor = (status: string) => {
@@ -311,58 +333,122 @@ const RequestList: React.FC = () => {
               </Grid>
 
               <Grid item xs={12}>
-                <FormControl fullWidth variant="outlined">
-                  <InputLabel id="tag-filter-label">タグで絞り込み（複数選択可）</InputLabel>
-                  <Select
-                    labelId="tag-filter-label"
-                    id="tag-filter"
-                    multiple
-                    value={tagFilters}
-                    onChange={(e) => setTagFilters(e.target.value as string[])}
-                    input={<OutlinedInput label="タグで絞り込み（複数選択可）" />}
-                    renderValue={(selected) => (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {selected.map((tagId) => {
-                          const tag = availableTags.find(t => t._id === tagId);
-                          return tag ? (
-                            <Chip 
-                              key={tag._id}
-                              label={tag.name}
-                              size="small"
-                              sx={{
-                                bgcolor: tag.color,
-                                color: 'white',
-                              }}
-                            />
-                          ) : null;
-                        })}
-                      </Box>
-                    )}
-                  >
-                    {availableTags.map((tag) => (
-                      <MenuItem key={tag._id} value={tag._id}>
-                        <Checkbox checked={tagFilters.indexOf(tag._id) > -1} />
-                        <ListItemText 
-                          primary={
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Box 
-                                component="span" 
-                                sx={{ 
-                                  width: 12, 
-                                  height: 12, 
-                                  borderRadius: '50%', 
-                                  bgcolor: tag.color,
-                                  mr: 1
-                                }} 
+                <Typography variant="subtitle1" gutterBottom>
+                  タグで絞り込み（複数選択可）
+                  {tagFilters.length > 0 && (
+                    <Typography component="span" sx={{ ml: 1, color: "text.secondary" }}>
+                      {tagFilters.length}件選択中
+                    </Typography>
+                  )}
+                </Typography>
+
+                {/* タグ検索フィールド */}
+                <TextField
+                  placeholder="タグを検索..."
+                  value={tagSearchQuery}
+                  onChange={(e) => setTagSearchQuery(e.target.value)}
+                  variant="outlined"
+                  size="small"
+                  fullWidth
+                  sx={{ mb: 2 }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: tagSearchQuery && (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setTagSearchQuery("")} edge="end">
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+
+                {/* 選択済みタグ */}
+                {tagFilters.length > 0 && (
+                  <Paper variant="outlined" sx={{ p: 1.5, mb: 2 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mb: 1 }}
+                    >
+                      選択されたタグ:
+                    </Typography>
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                      {tagFilters.map((tagId) => {
+                        const tag = availableTags.find((t) => t._id === tagId);
+                        return tag ? (
+                          <Chip
+                            key={tag._id}
+                            label={tag.name}
+                            sx={{
+                              bgcolor: tag.color,
+                              color: "white",
+                            }}
+                            onDelete={() => handleTagToggle(tag._id)}
+                          />
+                        ) : null;
+                      })}
+                    </Box>
+                  </Paper>
+                )}
+
+                {/* タグ一覧 - カテゴリー別に表示 */}
+                <Box sx={{ maxHeight: "300px", overflow: "auto", mt: 1 }}>
+                  {Object.entries(groupedTags).map(([category, categoryTags]) => {
+                    // 検索クエリでフィルタリング
+                    const filteredTags = categoryTags.filter((tag) =>
+                      tag.name.toLowerCase().includes(tagSearchQuery.toLowerCase())
+                    );
+
+                    // フィルタリングされたタグがなければそのカテゴリーは表示しない
+                    if (filteredTags.length === 0) return null;
+
+                    return (
+                      <Box key={category} sx={{ mb: 2 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ mb: 0.5, display: "block" }}
+                        >
+                          {category}
+                        </Typography>
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                          {filteredTags.map((tag) => {
+                            const isSelected = tagFilters.includes(tag._id);
+                            return (
+                              <Chip
+                                key={tag._id}
+                                label={tag.name}
+                                variant={isSelected ? "filled" : "outlined"}
+                                sx={{
+                                  bgcolor: isSelected ? tag.color : "transparent",
+                                  color: isSelected ? "white" : "inherit",
+                                  borderColor: tag.color,
+                                  "&:hover": {
+                                    bgcolor: isSelected ? tag.color : `${tag.color}33`,
+                                  },
+                                }}
+                                onClick={() => handleTagToggle(tag._id)}
+                                icon={
+                                  isSelected ? (
+                                    <LocalOfferIcon
+                                      sx={{ color: isSelected ? "white" : "inherit" }}
+                                    />
+                                  ) : undefined
+                                }
                               />
-                              {tag.name}
-                            </Box>
-                          } 
-                        />
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                            );
+                          })}
+                        </Box>
+                        <Divider sx={{ my: 1 }} />
+                      </Box>
+                    );
+                  })}
+                </Box>
               </Grid>
             </>
           )}
