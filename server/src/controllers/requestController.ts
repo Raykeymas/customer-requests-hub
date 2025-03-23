@@ -1,28 +1,28 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import CustomerRequest, { IRequest } from '../models/Request';
+import RequestModel, { IRequest } from '../models/Request';
 import { AuthRequest } from '../utils/authUtils';
 
 // 要望を作成
 export const createRequest = async (req: AuthRequest, res: Response) => {
   try {
-    const { 
-      title, 
-      content, 
-      customers, 
-      reporter, 
-      status, 
-      priority, 
+    const {
+      title,
+      content,
+      customers,
+      reporter,
+      status,
+      priority,
       tags,
-      customFields 
+      customFields
     } = req.body;
-    
+
     // 必須項目のチェック
     if (!title || !content) {
       return res.status(400).json({ message: 'タイトルと内容は必須項目です' });
     }
-    
-    const request = new CustomerRequest({
+
+    const request = new RequestModel({
       title,
       content,
       customers,
@@ -34,16 +34,16 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
       createdBy: req.user?.id,
       updatedBy: req.user?.id
     });
-    
+
     const createdRequest = await request.save();
-    
+
     // 関連情報を取得して返す
-    const populatedRequest = await CustomerRequest.findById(createdRequest._id)
+    const populatedRequest = await RequestModel.findById(createdRequest._id)
       .populate('customers', 'name company')
       .populate('tags', 'name color category')
       .populate('createdBy', 'name')
       .populate('updatedBy', 'name');
-    
+
     res.status(201).json(populatedRequest);
   } catch (error) {
     res.status(500).json({ message: '予期せぬエラーが発生しました', error: error instanceof Error ? error.message : '不明なエラー' });
@@ -54,7 +54,7 @@ export const createRequest = async (req: AuthRequest, res: Response) => {
 export const getRequests = async (req: Request, res: Response) => {
   try {
     const {
-      status, 
+      status,
       priority,
       customer,
       tag,
@@ -64,10 +64,10 @@ export const getRequests = async (req: Request, res: Response) => {
       page = 1,
       limit = 10
     } = req.query;
-    
+
     // フィルタリング条件を構築
     const filter: any = {};
-    
+
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
     if (customer) filter.customers = customer;
@@ -79,21 +79,21 @@ export const getRequests = async (req: Request, res: Response) => {
         { reporter: { $regex: search, $options: 'i' } }
       ];
     }
-    
+
     // ページネーション設定
     const pageNum = Number(page);
     const limitNum = Number(limit);
     const skip = (pageNum - 1) * limitNum;
-    
+
     // ソート設定
     const sortOption: any = {};
     sortOption[sort as string] = order === 'desc' ? -1 : 1;
-    
+
     // 要望数をカウント
-    const total = await CustomerRequest.countDocuments(filter);
-    
+    const total = await RequestModel.countDocuments(filter);
+
     // 要望を取得
-    const requests = await CustomerRequest.find(filter)
+    const requests = await RequestModel.find(filter)
       .populate('customers', 'name company')
       .populate('tags', 'name color category')
       .populate('createdBy', 'name')
@@ -101,7 +101,7 @@ export const getRequests = async (req: Request, res: Response) => {
       .sort(sortOption)
       .skip(skip)
       .limit(limitNum);
-    
+
     res.json({
       requests,
       page: pageNum,
@@ -116,7 +116,7 @@ export const getRequests = async (req: Request, res: Response) => {
 // 要望をIDで取得
 export const getRequestById = async (req: Request, res: Response) => {
   try {
-    const request = await CustomerRequest.findById(req.params.id)
+    const request = await RequestModel.findById(req.params.id)
       .populate('customers', 'name company email')
       .populate('tags', 'name color category')
       .populate('parentRequest', 'requestId title')
@@ -124,11 +124,11 @@ export const getRequestById = async (req: Request, res: Response) => {
       .populate('createdBy', 'name')
       .populate('updatedBy', 'name')
       .populate('comments.author', 'name');
-    
+
     if (!request) {
       return res.status(404).json({ message: '要望が見つかりません' });
     }
-    
+
     res.json(request);
   } catch (error) {
     res.status(500).json({ message: '予期せぬエラーが発生しました', error: error instanceof Error ? error.message : '不明なエラー' });
@@ -139,17 +139,17 @@ export const getRequestById = async (req: Request, res: Response) => {
 export const findSimilarRequests = async (req: Request, res: Response) => {
   try {
     const { title, content } = req.body;
-    
+
     if (!title && !content) {
       return res.status(400).json({ message: 'タイトルまたは内容が必要です' });
     }
-    
+
     let searchQuery: any = {};
-    
+
     if (title) {
       searchQuery.title = { $regex: title, $options: 'i' };
     }
-    
+
     if (content) {
       if (!searchQuery.$or) searchQuery.$or = [];
       searchQuery.$or = [
@@ -157,11 +157,11 @@ export const findSimilarRequests = async (req: Request, res: Response) => {
         { content: { $regex: content, $options: 'i' } }
       ];
     }
-    
-    const similarRequests = await CustomerRequest.find(searchQuery)
+
+    const similarRequests = await RequestModel.find(searchQuery)
       .select('requestId title content status')
       .limit(5);
-    
+
     res.json(similarRequests);
   } catch (error) {
     res.status(500).json({ message: '予期せぬエラーが発生しました', error: error instanceof Error ? error.message : '不明なエラー' });
@@ -171,12 +171,12 @@ export const findSimilarRequests = async (req: Request, res: Response) => {
 // 要望を更新
 export const updateRequest = async (req: AuthRequest, res: Response) => {
   try {
-    const request = await CustomerRequest.findById(req.params.id);
-    
+    const request = await RequestModel.findById(req.params.id);
+
     if (!request) {
       return res.status(404).json({ message: '要望が見つかりません' });
     }
-    
+
     const {
       title,
       content,
@@ -189,10 +189,10 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
       relatedRequests,
       customFields
     } = req.body;
-    
+
     // 変更履歴を記録
     const history: any = [];
-    
+
     if (title !== undefined && title !== request.title) {
       history.push({
         field: 'title',
@@ -203,7 +203,7 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
       });
       request.title = title;
     }
-    
+
     if (content !== undefined && content !== request.content) {
       history.push({
         field: 'content',
@@ -214,7 +214,7 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
       });
       request.content = content;
     }
-    
+
     if (reporter !== undefined && reporter !== request.reporter) {
       history.push({
         field: 'reporter',
@@ -225,7 +225,7 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
       });
       request.reporter = reporter;
     }
-    
+
     if (status !== undefined && status !== request.status) {
       history.push({
         field: 'status',
@@ -236,7 +236,7 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
       });
       request.status = status;
     }
-    
+
     if (priority !== undefined && priority !== request.priority) {
       history.push({
         field: 'priority',
@@ -247,7 +247,7 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
       });
       request.priority = priority;
     }
-    
+
     if (customers !== undefined) {
       history.push({
         field: 'customers',
@@ -258,7 +258,7 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
       });
       request.customers = customers;
     }
-    
+
     if (tags !== undefined) {
       history.push({
         field: 'tags',
@@ -269,7 +269,7 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
       });
       request.tags = tags;
     }
-    
+
     if (parentRequest !== undefined) {
       history.push({
         field: 'parentRequest',
@@ -280,7 +280,7 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
       });
       request.parentRequest = parentRequest;
     }
-    
+
     if (relatedRequests !== undefined) {
       history.push({
         field: 'relatedRequests',
@@ -291,7 +291,7 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
       });
       request.relatedRequests = relatedRequests;
     }
-    
+
     if (customFields !== undefined) {
       history.push({
         field: 'customFields',
@@ -302,17 +302,17 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
       });
       request.customFields = customFields;
     }
-    
+
     // 履歴を追加
     request.history.push(...history);
-    
+
     // 更新者とタイムスタンプを更新
     request.updatedBy = req.user?.id;
-    
+
     const updatedRequest = await request.save();
-    
+
     // 関連情報を取得して返す
-    const populatedRequest = await CustomerRequest.findById(updatedRequest._id)
+    const populatedRequest = await RequestModel.findById(updatedRequest._id)
       .populate('customers', 'name company')
       .populate('tags', 'name color category')
       .populate('parentRequest', 'requestId title')
@@ -320,7 +320,7 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
       .populate('createdBy', 'name')
       .populate('updatedBy', 'name')
       .populate('comments.author', 'name');
-    
+
     res.json(populatedRequest);
   } catch (error) {
     res.status(500).json({ message: '予期せぬエラーが発生しました', error: error instanceof Error ? error.message : '不明なエラー' });
@@ -331,33 +331,33 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
 export const addComment = async (req: AuthRequest, res: Response) => {
   try {
     const { content, attachments } = req.body;
-    
+
     if (!content) {
       return res.status(400).json({ message: 'コメント内容は必須です' });
     }
-    
-    const request = await CustomerRequest.findById(req.params.id);
-    
+
+    const request = await RequestModel.findById(req.params.id);
+
     if (!request) {
       return res.status(404).json({ message: '要望が見つかりません' });
     }
-    
+
     const comment = {
       content,
       author: new mongoose.Types.ObjectId(req.user?.id),
       attachments: attachments || [],
     };
-    
+
     request.comments.push(comment);
     request.updatedBy = new mongoose.Types.ObjectId(req.user?.id);
-    
+
     await request.save();
-    
+
     // 最新のコメントを含む要望を返す
-    const updatedRequest = await CustomerRequest.findById(req.params.id)
+    const updatedRequest = await RequestModel.findById(req.params.id)
       .populate('comments.author', 'name')
       .populate('updatedBy', 'name');
-    
+
     res.status(201).json(updatedRequest);
   } catch (error) {
     res.status(500).json({ message: '予期せぬエラーが発生しました', error: error instanceof Error ? error.message : '不明なエラー' });
@@ -367,14 +367,14 @@ export const addComment = async (req: AuthRequest, res: Response) => {
 // 要望を削除
 export const deleteRequest = async (req: AuthRequest, res: Response) => {
   try {
-    const request = await CustomerRequest.findById(req.params.id);
-    
+    const request = await RequestModel.findById(req.params.id);
+
     if (!request) {
       return res.status(404).json({ message: '要望が見つかりません' });
     }
-    
+
     await request.deleteOne();
-    
+
     res.json({ message: '要望が削除されました' });
   } catch (error) {
     res.status(500).json({ message: '予期せぬエラーが発生しました', error: error instanceof Error ? error.message : '不明なエラー' });
@@ -385,7 +385,7 @@ export const deleteRequest = async (req: AuthRequest, res: Response) => {
 export const getRequestStats = async (req: Request, res: Response) => {
   try {
     // ステータス別の要望数
-    let statusStats = await CustomerRequest.aggregate([
+    let statusStats = await RequestModel.aggregate([
       {
         $group: {
           _id: '$status',
@@ -396,7 +396,7 @@ export const getRequestStats = async (req: Request, res: Response) => {
         $sort: { count: -1 }
       }
     ]);
-    
+
     // ステータスデータがない場合はサンプルデータを返す
     if (statusStats.length === 0) {
       statusStats = [
@@ -410,7 +410,7 @@ export const getRequestStats = async (req: Request, res: Response) => {
     }
 
     // 優先度別の要望数
-    let priorityStats = await CustomerRequest.aggregate([
+    let priorityStats = await RequestModel.aggregate([
       {
         $group: {
           _id: '$priority',
@@ -424,7 +424,7 @@ export const getRequestStats = async (req: Request, res: Response) => {
         }
       }
     ]);
-    
+
     // 優先度データがない場合はサンプルデータを返す
     if (priorityStats.length === 0) {
       priorityStats = [
@@ -434,9 +434,9 @@ export const getRequestStats = async (req: Request, res: Response) => {
         { _id: '緊急', count: 7 }
       ];
     }
-    
+
     // タグ別の要望数（上位10件）
-    let tagStats = await CustomerRequest.aggregate([
+    let tagStats = await RequestModel.aggregate([
       {
         $unwind: '$tags'
       },
@@ -473,7 +473,7 @@ export const getRequestStats = async (req: Request, res: Response) => {
         }
       }
     ]);
-    
+
     // タグデータがない場合はサンプルデータを返す
     if (tagStats.length === 0) {
       tagStats = [
@@ -484,12 +484,12 @@ export const getRequestStats = async (req: Request, res: Response) => {
         { _id: '5', count: 7, name: 'セキュリティ', color: '#9b59b6', category: '重要度' }
       ];
     }
-    
+
     // 月別の要望登録数（過去12ヶ月）
     const today = new Date();
     const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
 
-    let monthlyStats = await CustomerRequest.aggregate([
+    let monthlyStats = await RequestModel.aggregate([
       {
         $match: {
           createdAt: { $gte: oneYearAgo }
@@ -511,23 +511,23 @@ export const getRequestStats = async (req: Request, res: Response) => {
         }
       }
     ]);
-    
+
     // 月別データがない場合はサンプルデータを返す
     if (monthlyStats.length === 0) {
       const currentYear = today.getFullYear();
       monthlyStats = [];
-      
+
       // 過去12ヶ月分のサンプルデータを生成
       for (let i = 0; i < 12; i++) {
         const month = ((today.getMonth() - i + 12) % 12) + 1;
         const year = currentYear - (today.getMonth() < month ? 1 : 0);
-        
+
         monthlyStats.push({
           _id: { year, month },
           count: Math.floor(Math.random() * 20) + 5 // 5〜25の間でランダムな値
         });
       }
-      
+
       // 日付順に並べ替え
       monthlyStats.sort((a, b) => {
         if (a._id.year !== b._id.year) {
@@ -536,9 +536,9 @@ export const getRequestStats = async (req: Request, res: Response) => {
         return a._id.month - b._id.month;
       });
     }
-    
+
     // 顧客別の要望数（上位10件）
-    let customerStats = await CustomerRequest.aggregate([
+    let customerStats = await RequestModel.aggregate([
       {
         $unwind: '$customers'
       },
@@ -574,7 +574,7 @@ export const getRequestStats = async (req: Request, res: Response) => {
         }
       }
     ]);
-    
+
     // 顧客データがない場合はサンプルデータを返す
     if (customerStats.length === 0) {
       customerStats = [
@@ -588,21 +588,21 @@ export const getRequestStats = async (req: Request, res: Response) => {
         { _id: '8', count: 7, name: '小林美香', company: 'クリエイティブ株式会社' }
       ];
     }
-    
+
     // 合計件数と今月の件数を取得
-    let totalRequests = await CustomerRequest.countDocuments();
-    let newRequestsThisMonth = await CustomerRequest.countDocuments({
+    let totalRequests = await RequestModel.countDocuments();
+    let newRequestsThisMonth = await RequestModel.countDocuments({
       createdAt: {
         $gte: new Date(today.getFullYear(), today.getMonth(), 1)
       }
     });
-    
+
     // データがない場合はサンプルデータを設定
     if (totalRequests === 0) {
       totalRequests = 85;  // サンプルの合計件数
       newRequestsThisMonth = 12;  // サンプルの今月の件数
     }
-    
+
     res.json({
       statusStats,
       priorityStats,

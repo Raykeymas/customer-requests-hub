@@ -44,20 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const drawerContent = (
     <>
-      <Box sx={{ p: 2 }}>
-        <Typography
-          variant="h6"
-          component={RouterLink}
-          to="/dashboard"
-          sx={{
-            color: 'inherit',
-            textDecoration: 'none',
-            cursor: 'pointer'
-          }}
-        >
-          顧客要望管理
-        </Typography>
-      </Box>
+      <Box sx={{ p: 2 }} />
       <Divider />
       <List>
         {menuItems.map((item) => (

@@ -1,0 +1,7 @@
+[project]
+name = "CustomerManager"
+description = "顧客要望管理システム"
+
+[commands]
+server_dev = { cmd = "cd server && npm run dev", desc = "Start the server in development mode" }
+client_dev = { cmd = "cd client && npm start", desc = "Start the client in development mode" }
