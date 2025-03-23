@@ -1,7 +1,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import Layout from "./components/layout/Layout";
 
 // ページのインポート
@@ -28,25 +28,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// テーマの設定
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: "#3f51b5",
-    },
-    secondary: {
-      main: "#f50057",
-    },
-    background: {
-      default: "#f5f5f5",
-    },
-  },
-});
-
 const App: React.FC = () => {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
           <Routes>

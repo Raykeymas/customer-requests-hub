@@ -9,15 +9,19 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
-  Box
+  Box,
+  Tooltip
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   AccountCircle,
-  Logout
+  Logout,
+  Brightness4,
+  Brightness7
 } from '@mui/icons-material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import { ThemeContext } from '../../context/ThemeContext';
 
 interface NavbarProps {
   drawerOpen?: boolean;
@@ -25,12 +29,13 @@ interface NavbarProps {
   isDesktop?: boolean;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ 
-  drawerOpen = false, 
-  onDrawerToggle = () => {}, 
-  isDesktop = false 
+const Navbar: React.FC<NavbarProps> = ({
+  drawerOpen = false,
+  onDrawerToggle = () => {},
+  isDesktop = false
 }) => {
   const { isAuthenticated, user, logout } = useContext(AuthContext);
+  const { mode, toggleColorMode } = useContext(ThemeContext);
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -49,9 +54,9 @@ const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <AppBar 
-      position="fixed" 
-      sx={{ 
+    <AppBar
+      position="fixed"
+      sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
         width: '100%'
       }}
@@ -82,6 +87,17 @@ const Navbar: React.FC<NavbarProps> = ({
         >
           顧客要望管理システム
         </Typography>
+
+        {/* テーマ切り替えボタン */}
+        <Tooltip title={mode === 'light' ? 'ダークモードに切り替え' : 'ライトモードに切り替え'}>
+          <IconButton 
+            color="inherit" 
+            onClick={toggleColorMode} 
+            sx={{ mr: 1 }}
+          >
+            {mode === 'light' ? <Brightness4 /> : <Brightness7 />}
+          </IconButton>
+        </Tooltip>
 
         {isAuthenticated ? (
           <div>
